@@ -44,13 +44,22 @@ int all_on() {
     is_right_most_on()
 }
 
-int main() {
+int is_center_on_only() {
+    return 
+    !is_leftmost_on() && 
+    !is_left_center_on() && 
+    is_center_on() && 
+    !is_right_center_on() && 
+    !is_right_most_on()
+}
 
+int main() {
+    
 }
 
 void outer_loop() {
     while (1) {
-        if (is_center_on()) {
+        if (is_center_on_only()) {
             // move forward
         } else {
             if (is_left_center_on() || is_leftmost_on()) {
@@ -69,4 +78,32 @@ void outer_loop() {
             // change state
         }
     }
+}
+
+// basic the same as outloop, just different travelling speed
+void inner_line() {
+    while (1) {
+        if (is_center_on_only()) {
+            // move forward slowly
+        } else {
+            if (is_left_center_on() || is_leftmost_on()) {
+                // make left wheel slower
+            } else if (is_right_center_on() || is_right_most_on()) {
+                // make right wheel slower
+            } else {
+                // Stop for a while.
+                // Search for the line by alternating turns (left, then right)
+            }
+        }
+
+        if (all_on()) {
+            // check point detected
+            // stop detecting for a while
+            // change state
+        }
+    }
+}
+
+void align_to_checkpoint() {
+    // left and right until all_on()
 }
