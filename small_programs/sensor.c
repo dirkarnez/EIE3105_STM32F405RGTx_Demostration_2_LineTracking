@@ -36,7 +36,8 @@ int is_right_most_on() {
 }
 
 int all_on() {
-    return is_leftmost_on() && 
+    return 
+    is_leftmost_on() && 
     is_left_center_on() && 
     is_center_on() && 
     is_right_center_on() && 
