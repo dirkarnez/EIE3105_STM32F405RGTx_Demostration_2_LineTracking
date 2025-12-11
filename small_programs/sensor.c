@@ -54,8 +54,10 @@ int is_center_on_only() {
 }
 
 int main() {
-	//10-13
+	// see book page 10-13
     // from book should consider ICC, and we can calculate how much we turn left / right
+
+	// for lab 3, see book page 10-32
 }
 
 void outer_loop() {
