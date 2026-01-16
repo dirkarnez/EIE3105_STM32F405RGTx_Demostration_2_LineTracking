@@ -313,6 +313,7 @@ void right_turn() {
 void left_turn() {
 	motor(20000, 0);
 }
+
 int left = 20000;
 int right = 20000;
 
@@ -366,6 +367,7 @@ static unsigned int get_current_checkpoint_index() {
 	return 0;
 }
 
+// need debounce
 int is_crossroad() {
 	return is_center_on() && (is_right_most_on() || is_right_center_on() || is_leftmost_on() || is_left_center_on());
 }
@@ -602,9 +604,9 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t size)
 //{
 //}
 
-char tracker_marking(uint16_t adc_value) {
+char print_true(uint16_t is_true) {
 	// mid-point of 12-bit ADC
-	return adc_value < 2048 ? '*' : '-';
+	return is_true ? '*' : '-';
 }
 
 void delay (uint16_t time)
@@ -758,13 +760,14 @@ int main(void)
 		// HCSR04_Read();
 
 		snprintf(buffer, sizeof(buffer), "[%c%c%c%c%c]",
-				tracker_marking(ADC2Array[0]),
-				tracker_marking(ADC2Array[1]),
-				tracker_marking(ADC2Array[2]),
-				tracker_marking(ADC2Array[3]),
-				tracker_marking(ADC2Array[4])
+				print_true(is_leftmost_on()),
+				print_true(is_left_center_on()),
+				print_true(is_center_on()),
+				print_true(is_right_center_on()),
+				print_true(is_right_most_on())
 				/*, Distance*/
 		);
+
 		ssd1306_SetCursor(0, 0);
 		ssd1306_WriteString(buffer, Font_11x18, White);
 
