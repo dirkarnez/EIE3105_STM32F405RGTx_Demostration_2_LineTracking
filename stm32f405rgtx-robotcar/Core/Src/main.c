@@ -210,7 +210,7 @@ uint32_t IC_Val1 = 0;
 uint32_t IC_Val2 = 0;
 uint32_t Difference = 0;
 uint8_t Is_First_Captured = 0;  // is the first value captured ?
-uint8_t Distance  = 0;
+uint8_t Distance  = 0; //cm
 
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
@@ -249,11 +249,208 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 	}
 }
 
+int is_on(uint16_t adc_value) {
+	// mid-point of 12-bit ADC
+	return adc_value < 2048;
+}
+
+int is_leftmost_on() {
+    return is_on(ADC2Array[0]);
+}
+
+int is_left_center_on() {
+    return is_on(ADC2Array[1]);
+}
+
+int is_center_on() {
+    return is_on(ADC2Array[2]);
+}
+
+int is_right_center_on() {
+    return is_on(ADC2Array[3]);
+}
+
+int is_right_most_on() {
+    return is_on(ADC2Array[4]);
+}
+
+int all_on() {
+    return
+    is_leftmost_on() &&
+    is_left_center_on() &&
+    is_center_on() &&
+    is_right_center_on() &&
+    is_right_most_on();
+}
+
+int is_center_on_only() {
+    return
+    !is_leftmost_on() &&
+    !is_left_center_on() &&
+    is_center_on() &&
+    !is_right_center_on() &&
+    !is_right_most_on();
+}
+
+int is_center_on_with_some_left() {
+    return is_center_on() && (is_right_most_on() || is_right_center_on());
+}
+
+int is_center_on_with_some_right() {
+    return is_center_on() && (is_leftmost_on() || is_left_center_on());
+}
+
+
+
+void straight() {
+	motor(20000, 20000);
+}
+
+void right_turn() {
+	motor(0, 20000);
+}
+
+void left_turn() {
+	motor(20000, 0);
+}
+int left = 20000;
+int right = 20000;
+
+void follow_line() {
+    if (is_center_on_only()) {
+    	left *= 1.2;
+    	right *= 1.2;
+    } else {
+        if (is_left_center_on() || is_leftmost_on()) {
+            // make left wheel slower
+        	left *= 0.5;
+        } else if (is_right_center_on() || is_right_most_on()) {
+            // make right wheel slower
+        	right *= 0.5;
+        } else {
+            // Stop for a while.
+            // Search for the line by alternating turns (left, then right)
+        	left = 0;
+        	right = 0;
+        }
+    }
+    motor(right, left);
+}
+
+static char map[] = { 0, 0, 0, 0, 0 };
+
+#define CHECKPOINT_A_INDEX (0)
+#define CHECKPOINT_B_INDEX (1)
+#define CHECKPOINT_C_INDEX (2)
+#define CHECKPOINT_D_INDEX (3)
+#define CHECKPOINT_E_INDEX (4)
+
+#define CHECKPOINT_A (map[CHECKPOINT_A_INDEX])
+#define CHECKPOINT_B (map[CHECKPOINT_B_INDEX])
+#define CHECKPOINT_C (map[CHECKPOINT_C_INDEX])
+#define CHECKPOINT_D (map[CHECKPOINT_D_INDEX])
+#define CHECKPOINT_E (map[CHECKPOINT_E_INDEX])
+
+#define IS_CHECKPOINT_A(index) (index == CHECKPOINT_A_INDEX)
+#define IS_CHECKPOINT_B(index) (index == CHECKPOINT_B_INDEX)
+#define IS_CHECKPOINT_C(index) (index == CHECKPOINT_C_INDEX)
+#define IS_CHECKPOINT_D(index) (index == CHECKPOINT_D_INDEX)
+#define IS_CHECKPOINT_E(index) (index == CHECKPOINT_E_INDEX)
+
+static unsigned int get_current_checkpoint_index() {
+	for (int i = sizeof(map) - 1; i >= 0; i--) {
+		if (map[i] > 0) {
+			return (i + 1) % sizeof(map);
+		}
+	}
+	return 0;
+}
+
+int is_crossroad() {
+	return is_center_on() && (is_right_most_on() || is_right_center_on() || is_leftmost_on() || is_left_center_on());
+}
+
+int crossroad_count = 0;
+int is_in_crossroad = 0;
+
+void set_crossroad_count() {
+	if (is_crossroad()) {
+		if (is_in_crossroad == 0) {
+			is_in_crossroad = 1;
+			crossroad_count += 1;
+		}
+	} else {
+		is_in_crossroad = 0;
+	}
+}
+
 // Callback function of SysTick
 void HAL_SYSTICK_Callback(void) {
 //HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_4); // 1ms toggle pin
 	ms_count++;
 	ultrasonic_counter++;
+
+	if (ms_count < 1000) {
+		ms_count = 0;
+	}
+
+	set_crossroad_count();
+
+	unsigned int index = get_current_checkpoint_index();
+
+	if (IS_CHECKPOINT_A(index)) {
+		if (crossroad_count == 1) {
+			follow_line();
+		}
+
+		if (crossroad_count > 1) {
+			CHECKPOINT_A = 1;
+		}
+	}
+
+//	while (IS_CHECKPOINT_B(index) && !is_crossroad()) {
+//		// walk straight until B
+//		follow_line();
+//	}
+
+//	}
+//	// B
+//	if (is_crossroad()) {
+//		// right 90 deg
+//		do {
+//			follow_line();
+//		} while(!is_crossroad());
+//	}
+//	// C
+//	if (is_crossroad()) {
+//		// left 90 deg
+//		do {
+//			follow_line();
+//		} while(!is_crossroad());
+//	}
+//	// E
+//	if (is_crossroad()) {
+//		// left 90 deg
+//		do {
+//			follow_line();
+//		} while(!is_crossroad());
+//	}
+//	// F
+//	if (is_crossroad()) {
+//		// right 90 deg
+//		do {
+//			follow_line();
+//		} while(!is_crossroad());
+//	}
+
+
+
+
+
+
+
+
+
 
 //	// Tesing only
 //	if (ms_count < 2000) {
@@ -268,17 +465,17 @@ void HAL_SYSTICK_Callback(void) {
 //	unsigned int is_right_pressed = 0; // 'r'
 //	unsigned int is_down_pressed = 0; // 'd'
 //	unsigned int is_left_pressed = 0;	// 'l'
-	if (is_up_pressed == 1) {
-		motor(20000, 20000);
-	} else if (is_right_pressed == 1) {
-		motor(0, 20000);
-	} else if (is_down_pressed == 1) {
-		motor(-20000, -20000);
-	} else if (is_left_pressed == 1) {
-		motor(20000, 0);
-	} else {
-		motor(0, 0);
-	}
+//	if (is_up_pressed == 1) {
+//		motor(20000, 20000);
+//	} else if (is_right_pressed == 1) {
+//		motor(0, 20000);
+//	} else if (is_down_pressed == 1) {
+//		motor(-20000, -20000);
+//	} else if (is_left_pressed == 1) {
+//		motor(20000, 0);
+//	} else {
+//		motor(0, 0);
+//	}
 }
 
 // ADC Callback
@@ -407,7 +604,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t size)
 
 char tracker_marking(uint16_t adc_value) {
 	// mid-point of 12-bit ADC
-	return adc_value < 2048 ? '-' : '*';
+	return adc_value < 2048 ? '*' : '-';
 }
 
 void delay (uint16_t time)
@@ -558,21 +755,23 @@ int main(void)
 //			__HAL_TIM_SET_CAPTUREPOLARITY(&htim8, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
 //		}
 
-		HCSR04_Read();
+		// HCSR04_Read();
 
-		snprintf(buffer, sizeof(buffer), "%c%c%c%c%c-%dcm",
+		snprintf(buffer, sizeof(buffer), "[%c%c%c%c%c]",
 				tracker_marking(ADC2Array[0]),
 				tracker_marking(ADC2Array[1]),
 				tracker_marking(ADC2Array[2]),
 				tracker_marking(ADC2Array[3]),
-				tracker_marking(ADC2Array[4]),
-				Distance
+				tracker_marking(ADC2Array[4])
+				/*, Distance*/
 		);
 		ssd1306_SetCursor(0, 0);
 		ssd1306_WriteString(buffer, Font_11x18, White);
 
 		// [STM32 UART Receive via IDLE Line – Interrupt & DMA Tutorial](https://controllerstech.com/stm32-uart-5-receive-data-using-idle-line/)
-		snprintf(buffer, sizeof(buffer), "%04d, %04d", x_axis_adc0, y_axis_adc1); // 4,294,967,295
+		// snprintf(buffer, sizeof(buffer), "%04d, %04d", x_axis_adc0, y_axis_adc1); // 4,294,967,295
+		snprintf(buffer, sizeof(buffer), "%d %s %d", get_current_checkpoint_index(), IS_CHECKPOINT_A(get_current_checkpoint_index()) ? "A" : "Not A", crossroad_count);
+
 		ssd1306_SetCursor(0, 30); // Set cursor below the GPIO states
 		ssd1306_WriteString(buffer, Font_11x18, White);
 
