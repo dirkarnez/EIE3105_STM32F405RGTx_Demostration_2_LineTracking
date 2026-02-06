@@ -81,6 +81,7 @@ unsigned int x_axis_adc0 = 0; // 'x'
 unsigned int y_axis_adc1 = 0;	// 'y'
 
 uint8_t sensor_array_value = 0;
+
 #define is_center_on_only() ( \
 	(sensor_array_value == 4) || \
 	(sensor_array_value == 6) || \
@@ -98,7 +99,7 @@ uint8_t sensor_array_value = 0;
 #define is_nth_bit_zero(value, nth) (((value & (1 << nth)) == 0) ? 1 : 0)
 #define get_right() ((sensor_array_value) >> 3)
 #define get_left() (reverse_5_bits((sensor_array_value | 0b11000)) >> 3)
-
+#define is_crossroad() (sensor_array_value == 0b11111)
 
 // OLED Display
 char buffer[20]; // String buffer for formatted output on the OLED screen
@@ -374,11 +375,6 @@ static unsigned int get_current_checkpoint_index() {
 		}
 	}
 	return 0;
-}
-
-// need debounce
-int is_crossroad() {
-	return sensor_array_value == 0b11111;
 }
 
 int crossroad_count = 0;
@@ -775,10 +771,6 @@ int main(void)
 		    ADC_TO_BINARY(ADC2Array[1], 1) |
 		    ADC_TO_BINARY(ADC2Array[0], 0);
 
-
-
-
-
 		if (is_center_on_only()) {
 			left = 20000;
 			right = 20000;
@@ -793,12 +785,14 @@ int main(void)
 				left = 20000;
 				right = 10000;
 			}
-//
-//			if (all_on()) {
-//				// check point detected
-//				// stop detecting for a while
-//				// change state
-//			}
+		}
+
+		if (is_crossroad()) {
+			// check point detected
+			// stop detecting for a while
+			// change state
+
+			CHECKPOINT_A = 1;
 		}
 
 		// 0 is leftmost
