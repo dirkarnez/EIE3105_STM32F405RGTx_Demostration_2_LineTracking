@@ -34,6 +34,9 @@
 #include <math.h>
 #include <ssd1306.h>
 #include <ssd1306_fonts.h>
+#define ADC_TO_BINARY(adc_value, NTH) (((adc_value) < (2048)) ? (1 << NTH) : 0)
+#define IS_NTH_BIT_ONE(TARGET, NTH) (((TARGET) & (1 << NTH)) == (1 << NTH))
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -76,6 +79,11 @@ unsigned int is_f_pressed = 0;	// 'f'
 unsigned int is_joystick_pressed = 0; // 'j'
 unsigned int x_axis_adc0 = 0; // 'x'
 unsigned int y_axis_adc1 = 0;	// 'y'
+
+uint8_t sensor_array_value = 0;
+#define is_center_on_only() ((sensor_array_value == 4) || (sensor_array_value == 6) || (sensor_array_value == 12) || (sensor_array_value == 14) ? 1 : 0)
+#define is_leftmost_on() ((sensor_array_value & 0b10000) == 0b10000 ? 1 : 0)
+#define is_rightmost_on() ((sensor_array_value & 0b1) == 0b1 ? 1 : 0)
 
 
 // OLED Display
@@ -254,9 +262,6 @@ int is_on(uint16_t adc_value) {
 	return adc_value < 2048;
 }
 
-int is_leftmost_on() {
-    return is_on(ADC2Array[0]);
-}
 
 int is_left_center_on() {
     return is_on(ADC2Array[1]);
@@ -270,9 +275,6 @@ int is_right_center_on() {
     return is_on(ADC2Array[3]);
 }
 
-int is_right_most_on() {
-    return is_on(ADC2Array[4]);
-}
 
 int all_on() {
     return
@@ -280,24 +282,15 @@ int all_on() {
     is_left_center_on() &&
     is_center_on() &&
     is_right_center_on() &&
-    is_right_most_on();
+    is_rightmost_on();
 }
 
-int is_center_on_only() {
-    return
-    !is_leftmost_on() &&
-    !is_left_center_on() &&
-    is_center_on() &&
-    !is_right_center_on() &&
-    !is_right_most_on();
+int is_center_on_with_any_left() {
+	return sensor_array_value > 0b00111 ? 1 : 0;
 }
 
-int is_center_on_with_some_left() {
-    return is_center_on() && (is_right_most_on() || is_right_center_on());
-}
-
-int is_center_on_with_some_right() {
-    return is_center_on() && (is_leftmost_on() || is_left_center_on());
+int is_center_on_with_any_right() {
+	return sensor_array_value < 0b00100 ? 1 : 0;
 }
 
 
@@ -314,29 +307,29 @@ void left_turn() {
 	motor(20000, 0);
 }
 
-int left = 20000;
-int right = 20000;
+int left = 0;
+int right = 0;
 
-void follow_line() {
-    if (is_center_on_only()) {
-    	left *= 1.2;
-    	right *= 1.2;
-    } else {
-        if (is_left_center_on() || is_leftmost_on()) {
-            // make left wheel slower
-        	left *= 0.5;
-        } else if (is_right_center_on() || is_right_most_on()) {
-            // make right wheel slower
-        	right *= 0.5;
-        } else {
-            // Stop for a while.
-            // Search for the line by alternating turns (left, then right)
-        	left = 0;
-        	right = 0;
-        }
-    }
-    motor(right, left);
-}
+//void follow_line() {
+//    if (is_center_on_only()) {
+//    	left *= 1.2;
+//    	right *= 1.2;
+//    } else {
+//        if (is_left_center_on() || is_leftmost_on()) {
+//            // make left wheel slower
+//        	left *= 0.5;
+//        } else if (is_right_center_on() || is_rightmost_on()) {
+//            // make right wheel slower
+//        	right *= 0.5;
+//        } else {
+//            // Stop for a while.
+//            // Search for the line by alternating turns (left, then right)
+//        	left = 0;
+//        	right = 0;
+//        }
+//    }
+//    motor(right, left);
+//}
 
 static char map[] = { 0, 0, 0, 0, 0 };
 
@@ -369,7 +362,7 @@ static unsigned int get_current_checkpoint_index() {
 
 // need debounce
 int is_crossroad() {
-	return is_center_on() && (is_right_most_on() || is_right_center_on() || is_leftmost_on() || is_left_center_on());
+	return sensor_array_value == 0b11111;
 }
 
 int crossroad_count = 0;
@@ -388,27 +381,26 @@ void set_crossroad_count() {
 
 // Callback function of SysTick
 void HAL_SYSTICK_Callback(void) {
+	motor(right, left);
 //HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_4); // 1ms toggle pin
-	ms_count++;
-	ultrasonic_counter++;
+//	ms_count++;
+//	ultrasonic_counter++;
+//
+//	if (ms_count < 1000) {
+//		ms_count = 0;
+//	}
 
-	if (ms_count < 1000) {
-		ms_count = 0;
-	}
-
-	set_crossroad_count();
-
-	unsigned int index = get_current_checkpoint_index();
-
-	if (IS_CHECKPOINT_A(index)) {
-		if (crossroad_count == 1) {
-			follow_line();
-		}
-
-		if (crossroad_count > 1) {
-			CHECKPOINT_A = 1;
-		}
-	}
+//	unsigned int index = get_current_checkpoint_index();
+//
+//	if (IS_CHECKPOINT_A(index)) {
+//		if (crossroad_count == 1) {
+//			follow_line();
+//		}
+//
+//		if (crossroad_count > 1) {
+//			CHECKPOINT_A = 1;
+//		}
+//	}
 
 //	while (IS_CHECKPOINT_B(index) && !is_crossroad()) {
 //		// walk straight until B
@@ -604,9 +596,9 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t size)
 //{
 //}
 
-char print_true(uint16_t is_true) {
+char print_true(uint16_t is_truthy) {
 	// mid-point of 12-bit ADC
-	return is_true ? '*' : '-';
+	return is_truthy ? '*' : '-';
 }
 
 void delay (uint16_t time)
@@ -759,12 +751,50 @@ int main(void)
 
 		// HCSR04_Read();
 
+		set_crossroad_count();
+
+		sensor_array_value = ADC_TO_BINARY(ADC2Array[4], 4) |
+		    ADC_TO_BINARY(ADC2Array[3], 3) |
+		    ADC_TO_BINARY(ADC2Array[2], 2) |
+		    ADC_TO_BINARY(ADC2Array[1], 1) |
+		    ADC_TO_BINARY(ADC2Array[0], 0);
+
+
+
+		if (is_center_on_only()) {
+			left = 20000;
+			right = 20000;
+		} else {
+			left = 0;
+			right = 0;
+			delay(10);
+
+			if (is_leftmost_on()) {
+				// make left wheel slower
+				left *= 0.5;
+			} else if (is_rightmost_on()) {
+				// make right wheel slower
+				right *= 0.5;
+			} else {
+				delay(10);
+				// Stop for a while.
+				// Search for the line by alternating turns (left, then right)
+			}
+//
+//			if (all_on()) {
+//				// check point detected
+//				// stop detecting for a while
+//				// change state
+//			}
+		}
+
+
 		snprintf(buffer, sizeof(buffer), "[%c%c%c%c%c]",
-				print_true(is_leftmost_on()),
-				print_true(is_left_center_on()),
-				print_true(is_center_on()),
-				print_true(is_right_center_on()),
-				print_true(is_right_most_on())
+				print_true(IS_NTH_BIT_ONE(sensor_array_value, 0)),
+				print_true(IS_NTH_BIT_ONE(sensor_array_value, 1)),
+				print_true(IS_NTH_BIT_ONE(sensor_array_value, 2)),
+				print_true(IS_NTH_BIT_ONE(sensor_array_value, 3)),
+				print_true(IS_NTH_BIT_ONE(sensor_array_value, 4))
 				/*, Distance*/
 		);
 
@@ -773,7 +803,7 @@ int main(void)
 
 		// [STM32 UART Receive via IDLE Line – Interrupt & DMA Tutorial](https://controllerstech.com/stm32-uart-5-receive-data-using-idle-line/)
 		// snprintf(buffer, sizeof(buffer), "%04d, %04d", x_axis_adc0, y_axis_adc1); // 4,294,967,295
-		snprintf(buffer, sizeof(buffer), "%d %s %d", get_current_checkpoint_index(), IS_CHECKPOINT_A(get_current_checkpoint_index()) ? "A" : "Not A", crossroad_count);
+		snprintf(buffer, sizeof(buffer), "%d %d %s %d", is_center_on_only(), get_current_checkpoint_index(), IS_CHECKPOINT_A(get_current_checkpoint_index()) ? "A" : "Not A", crossroad_count);
 
 		ssd1306_SetCursor(0, 30); // Set cursor below the GPIO states
 		ssd1306_WriteString(buffer, Font_11x18, White);
