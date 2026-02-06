@@ -81,9 +81,23 @@ unsigned int x_axis_adc0 = 0; // 'x'
 unsigned int y_axis_adc1 = 0;	// 'y'
 
 uint8_t sensor_array_value = 0;
-#define is_center_on_only() ((sensor_array_value == 4) || (sensor_array_value == 6) || (sensor_array_value == 12) || (sensor_array_value == 14) ? 1 : 0)
-#define is_leftmost_on() ((sensor_array_value & 0b10000) == 0b10000 ? 1 : 0)
-#define is_rightmost_on() ((sensor_array_value & 0b1) == 0b1 ? 1 : 0)
+#define is_center_on_only() ( \
+	(sensor_array_value == 4) || \
+	(sensor_array_value == 6) || \
+	(sensor_array_value == 12) || \
+	(sensor_array_value == 14) \
+	? 1 : 0)
+
+#define reverse_5_bits(value) ( \
+		( (value & 0x01) << 4 ) | \
+		( (value & 0x02) << 2 ) | \
+		( (value & 0x04) ) 		| \
+		( (value & 0x08) >> 2 ) | \
+		( (value & 0x10) >> 4 ))
+
+#define is_nth_bit_zero(value, nth) (((value & (1 << nth)) == 0) ? 1 : 0)
+#define get_left() ((sensor_array_value) >> 3)
+#define get_right() (reverse_5_bits(((sensor_array_value) >> 3)))
 
 
 // OLED Display
@@ -309,6 +323,8 @@ void left_turn() {
 
 int left = 0;
 int right = 0;
+int sensor_left = 0;
+int sensor_right = 0;
 
 //void follow_line() {
 //    if (is_center_on_only()) {
@@ -761,6 +777,9 @@ int main(void)
 
 
 
+		sensor_left = get_left();
+		sensor_right = get_right();
+
 		if (is_center_on_only()) {
 			left = 20000;
 			right = 20000;
@@ -769,17 +788,12 @@ int main(void)
 			right = 0;
 			delay(10);
 
-			if (is_leftmost_on()) {
-				// make left wheel slower
+			if (sensor_left > sensor_right) {
 				left *= 0.5;
-			} else if (is_rightmost_on()) {
-				// make right wheel slower
+			} else if (sensor_right > sensor_left) {
 				right *= 0.5;
-			} else {
-				delay(10);
-				// Stop for a while.
-				// Search for the line by alternating turns (left, then right)
 			}
+
 //
 //			if (all_on()) {
 //				// check point detected
