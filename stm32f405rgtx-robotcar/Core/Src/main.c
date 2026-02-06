@@ -791,8 +791,23 @@ int main(void)
 			// check point detected
 			// stop detecting for a while
 			// change state
-
-			CHECKPOINT_A = 1;
+			if (IS_CHECKPOINT_A(get_current_checkpoint_index())) {
+				right = 0;
+				CHECKPOINT_A = 1;
+			} else if (IS_CHECKPOINT_B(get_current_checkpoint_index())) {
+				left = 0;
+				CHECKPOINT_B = 1;
+			} else if (IS_CHECKPOINT_C(get_current_checkpoint_index())) {
+				left = 0;
+				CHECKPOINT_C = 1;
+			} else if (IS_CHECKPOINT_D(get_current_checkpoint_index())) {
+				right = 0;
+				CHECKPOINT_D = 1;
+			} else if (IS_CHECKPOINT_E(get_current_checkpoint_index())) {
+				right = 0;
+				CHECKPOINT_E = 1;
+			}
+			delay(20);
 		}
 
 		// 0 is leftmost
