@@ -96,8 +96,8 @@ uint8_t sensor_array_value = 0;
 		( (value & 0x10) >> 4 ))
 
 #define is_nth_bit_zero(value, nth) (((value & (1 << nth)) == 0) ? 1 : 0)
-#define get_left() ((sensor_array_value) >> 3)
-#define get_right() (reverse_5_bits(((sensor_array_value) >> 3)))
+#define get_right() ((sensor_array_value) >> 3)
+#define get_left() (reverse_5_bits((sensor_array_value | 0b11000)) >> 3)
 
 
 // OLED Display
@@ -289,15 +289,15 @@ int is_right_center_on() {
     return is_on(ADC2Array[3]);
 }
 
-
-int all_on() {
-    return
-    is_leftmost_on() &&
-    is_left_center_on() &&
-    is_center_on() &&
-    is_right_center_on() &&
-    is_rightmost_on();
-}
+//
+//int all_on() {
+//    return
+//    is_leftmost_on() &&
+//    is_left_center_on() &&
+//    is_center_on() &&
+//    is_right_center_on() &&
+//    is_rightmost_on();
+//}
 
 int is_center_on_with_any_left() {
 	return sensor_array_value > 0b00111 ? 1 : 0;
@@ -777,23 +777,22 @@ int main(void)
 
 
 
-		sensor_left = get_left();
-		sensor_right = get_right();
+
 
 		if (is_center_on_only()) {
 			left = 20000;
 			right = 20000;
 		} else {
-			left = 0;
-			right = 0;
-			delay(10);
+			sensor_left = get_left();
+			sensor_right = get_right();
 
 			if (sensor_left > sensor_right) {
-				left *= 0.5;
+				left = 10000;
+				right = 20000;
 			} else if (sensor_right > sensor_left) {
-				right *= 0.5;
+				left = 20000;
+				right = 10000;
 			}
-
 //
 //			if (all_on()) {
 //				// check point detected
@@ -802,7 +801,7 @@ int main(void)
 //			}
 		}
 
-
+		// 0 is leftmost
 		snprintf(buffer, sizeof(buffer), "[%c%c%c%c%c]",
 				print_true(IS_NTH_BIT_ONE(sensor_array_value, 0)),
 				print_true(IS_NTH_BIT_ONE(sensor_array_value, 1)),
