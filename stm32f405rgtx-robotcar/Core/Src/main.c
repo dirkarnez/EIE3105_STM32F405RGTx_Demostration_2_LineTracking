@@ -99,7 +99,6 @@ uint8_t sensor_array_value = 0;
 #define is_nth_bit_zero(value, nth) (((value & (1 << nth)) == 0) ? 1 : 0)
 #define get_right() ((sensor_array_value) >> 3)
 #define get_left() (reverse_5_bits((sensor_array_value | 0b11000)) >> 3)
-#define is_crossroad() (sensor_array_value == 0b11111)
 
 // OLED Display
 char buffer[20]; // String buffer for formatted output on the OLED screen
@@ -322,6 +321,8 @@ void left_turn() {
 	motor(30000, 0);
 }
 
+#define NORMAL_SPEED (25000)
+
 int left = 0;
 int right = 0;
 int sensor_left = 0;
@@ -365,19 +366,27 @@ int get_current_checkpoint_index() {
 	return 0;
 }
 
+int is_crossroad(int idx) {
+	if (idx == CHECKPOINT_C_INDEX) {
+		return sensor_array_value == 0b00111;
+	} else {
+		return sensor_array_value == 0b11111;
+	}
+}
+
 int crossroad_count = 0;
 int is_in_crossroad = 0;
 
-void set_crossroad_count() {
-	if (is_crossroad()) {
-		if (is_in_crossroad == 0) {
-			is_in_crossroad = 1;
-			crossroad_count += 1;
-		}
-	} else {
-		is_in_crossroad = 0;
-	}
-}
+//void set_crossroad_count() {
+//	if (is_crossroad()) {
+//		if (is_in_crossroad == 0) {
+//			is_in_crossroad = 1;
+//			crossroad_count += 1;
+//		}
+//	} else {
+//		is_in_crossroad = 0;
+//	}
+//}
 
 // Callback function of SysTick
 void HAL_SYSTICK_Callback(void) {
@@ -757,52 +766,68 @@ int main(void)
 
 		if (is_turning == 0) {
 			if (is_center_on_only()) {
-				left = 30000;
-				right = 30000;
+				left = NORMAL_SPEED;
+				right = NORMAL_SPEED;
 			} else {
 				sensor_left = get_left();
 				sensor_right = get_right();
 
 				if (sensor_left > sensor_right) {
 					left = 15000;
-					right = 30000;
+					right = NORMAL_SPEED;
 				} else if (sensor_right > sensor_left) {
-					left = 30000;
+					left = NORMAL_SPEED;
 					right = 15000;
 				}
 			}
 
-			if (is_crossroad()) {
+			if (is_crossroad(index)) {
 				// check point detected
 				// stop detecting for a while
 				// change state
 				if (index == CHECKPOINT_A_INDEX && (__HAL_TIM_GET_COUNTER(&htim2) > 2000 && __HAL_TIM_GET_COUNTER(&htim5) > 2000))
 				{
-					left = 15000;
+					left = NORMAL_SPEED / 2;
 					right = 0;
 					left_snapshot = __HAL_TIM_GET_COUNTER(&htim2);
 					is_turning = 1;
 					map[CHECKPOINT_A_INDEX] = 1;
-				} else if (index == CHECKPOINT_B_INDEX) {
+				} else if (index == CHECKPOINT_B_INDEX && (__HAL_TIM_GET_COUNTER(&htim2) > 3000 && __HAL_TIM_GET_COUNTER(&htim5) > 3000)) {
 					left = 0;
+					right = NORMAL_SPEED / 2;
 					right_snapshot = __HAL_TIM_GET_COUNTER(&htim5);
+					is_turning = 1;
 					map[CHECKPOINT_B_INDEX] = 1;
-				} else if (index == CHECKPOINT_C_INDEX) {
+				} else if (index == CHECKPOINT_C_INDEX && (__HAL_TIM_GET_COUNTER(&htim2) > 7000 && __HAL_TIM_GET_COUNTER(&htim5) > 7000)) {
 					left = 0;
+					right = NORMAL_SPEED / 2;
+					right_snapshot = __HAL_TIM_GET_COUNTER(&htim5);
+					is_turning = 1;
 					map[CHECKPOINT_C_INDEX] = 1;
-				} else if (index == CHECKPOINT_D_INDEX) {
-					right = 0;
-					map[CHECKPOINT_D_INDEX] = 1;
-				} else if (index == CHECKPOINT_E_INDEX) {
-					right = 0;
-					map[CHECKPOINT_E_INDEX] = 1;
 				}
+//				else if (index == CHECKPOINT_D_INDEX) {
+//					right = 0;
+//					map[CHECKPOINT_D_INDEX] = 1;
+//				} else if (index == CHECKPOINT_E_INDEX) {
+//					right = 0;
+//					map[CHECKPOINT_E_INDEX] = 1;
+//				}
 			}
 		} else {
 			if (index == CHECKPOINT_B_INDEX) {
 				if ( __HAL_TIM_GET_COUNTER(&htim2) > (left_snapshot + 600)) {
 					is_turning = 0;
 					left_snapshot = 0;
+				}
+			} else if (index == CHECKPOINT_C_INDEX) {
+				if ( __HAL_TIM_GET_COUNTER(&htim5) > (right_snapshot + 400)) {
+					is_turning = 0;
+					right_snapshot = 0;
+				}
+			} else if (index == CHECKPOINT_D_INDEX) {
+				if ( __HAL_TIM_GET_COUNTER(&htim5) > (right_snapshot + 400)) {
+					is_turning = 0;
+					right_snapshot = 0;
 				}
 			}
 		}
