@@ -824,7 +824,7 @@ int main(void)
 					right_snapshot = __HAL_TIM_GET_COUNTER(&htim5);
 					is_turning = 1;
 					map[CHECKPOINT_C_INDEX] = 1;
-				} else if (index == CHECKPOINT_D_INDEX) {
+				} else if (index == CHECKPOINT_D_INDEX && (__HAL_TIM_GET_COUNTER(&htim2) > 8500 && __HAL_TIM_GET_COUNTER(&htim5) > 8500)) {
 					left = NORMAL_SPEED / 2;
 					right = 0;
 					left_snapshot = __HAL_TIM_GET_COUNTER(&htim2);
