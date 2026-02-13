@@ -798,6 +798,9 @@ int main(void)
 				} else if (sensor_right > sensor_left) {
 					left = NORMAL_SPEED;
 					right = 15000;
+				} else {
+					left = NORMAL_SPEED;
+					right = NORMAL_SPEED;
 				}
 			}
 
@@ -853,7 +856,7 @@ int main(void)
 					right_snapshot = 0;
 				}
 			} else if (index == CHECKPOINT_E_INDEX) {
-				if ( __HAL_TIM_GET_COUNTER(&htim5) > (left_snapshot + 600)) {
+				if ( __HAL_TIM_GET_COUNTER(&htim2) > (left_snapshot + 600)) {
 					is_turning = 0;
 					left_snapshot = 0;
 				}
