@@ -368,7 +368,10 @@ int get_current_checkpoint_index() {
 
 int is_crossroad(int idx) {
 	if (idx == CHECKPOINT_C_INDEX) {
-		return sensor_array_value == 0b00111;
+		return sensor_array_value == 0b01111 ||
+				sensor_array_value == 0b00111 ||
+				sensor_array_value == 0b00011 ||
+				sensor_array_value == 0b00001;
 	} else {
 		return sensor_array_value == 0b11111;
 	}
@@ -611,6 +614,23 @@ char print_true(uint16_t is_truthy) {
 	return is_truthy ? '*' : '-';
 }
 
+char print_checkpoint(int idx) {
+	switch (idx) {
+	  case 0:
+		  return 'A';
+	  case 1:
+		  return 'B';
+	  case 2:
+		  return 'C';
+	  case 3:
+		  return 'D';
+	  case 4:
+		  return 'E';
+	}
+	return 'N';
+}
+
+
 void delay (uint16_t time)
 {
 	__HAL_TIM_SET_COUNTER(&htim8, 0);
@@ -804,11 +824,14 @@ int main(void)
 					right_snapshot = __HAL_TIM_GET_COUNTER(&htim5);
 					is_turning = 1;
 					map[CHECKPOINT_C_INDEX] = 1;
+				} else if (index == CHECKPOINT_D_INDEX) {
+					left = NORMAL_SPEED / 2;
+					right = 0;
+					left_snapshot = __HAL_TIM_GET_COUNTER(&htim2);
+					is_turning = 1;
+					map[CHECKPOINT_D_INDEX] = 1;
 				}
-//				else if (index == CHECKPOINT_D_INDEX) {
-//					right = 0;
-//					map[CHECKPOINT_D_INDEX] = 1;
-//				} else if (index == CHECKPOINT_E_INDEX) {
+//				else if (index == CHECKPOINT_E_INDEX) {
 //					right = 0;
 //					map[CHECKPOINT_E_INDEX] = 1;
 //				}
@@ -829,6 +852,11 @@ int main(void)
 					is_turning = 0;
 					right_snapshot = 0;
 				}
+			} else if (index == CHECKPOINT_E_INDEX) {
+				if ( __HAL_TIM_GET_COUNTER(&htim5) > (left_snapshot + 600)) {
+					is_turning = 0;
+					left_snapshot = 0;
+				}
 			}
 		}
 
@@ -847,7 +875,7 @@ int main(void)
 
 		// [STM32 UART Receive via IDLE Line – Interrupt & DMA Tutorial](https://controllerstech.com/stm32-uart-5-receive-data-using-idle-line/)
 		// snprintf(buffer, sizeof(buffer), "%04d, %04d", x_axis_adc0, y_axis_adc1); // 4,294,967,295
-		snprintf(buffer, sizeof(buffer), "l=%"PRIu32" %d %d", left_snapshot, index, crossroad_count);
+		snprintf(buffer, sizeof(buffer), "l=%"PRIu32" %c %d", left_snapshot, print_checkpoint(index), crossroad_count);
 		ssd1306_SetCursor(0, 25); // Set cursor below the GPIO states
 		ssd1306_WriteString(buffer, Font_11x18, White);
 
