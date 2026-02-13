@@ -311,15 +311,15 @@ int is_center_on_with_any_right() {
 
 
 void straight() {
-	motor(20000, 20000);
+	motor(30000, 30000);
 }
 
 void right_turn() {
-	motor(0, 20000);
+	motor(0, 30000);
 }
 
 void left_turn() {
-	motor(20000, 0);
+	motor(30000, 0);
 }
 
 int left = 0;
@@ -356,19 +356,7 @@ static char map[] = { 0, 0, 0, 0, 0 };
 #define CHECKPOINT_D_INDEX (3)
 #define CHECKPOINT_E_INDEX (4)
 
-#define CHECKPOINT_A (map[CHECKPOINT_A_INDEX])
-#define CHECKPOINT_B (map[CHECKPOINT_B_INDEX])
-#define CHECKPOINT_C (map[CHECKPOINT_C_INDEX])
-#define CHECKPOINT_D (map[CHECKPOINT_D_INDEX])
-#define CHECKPOINT_E (map[CHECKPOINT_E_INDEX])
-
-#define IS_CHECKPOINT_A(index) (index == CHECKPOINT_A_INDEX)
-#define IS_CHECKPOINT_B(index) (index == CHECKPOINT_B_INDEX)
-#define IS_CHECKPOINT_C(index) (index == CHECKPOINT_C_INDEX)
-#define IS_CHECKPOINT_D(index) (index == CHECKPOINT_D_INDEX)
-#define IS_CHECKPOINT_E(index) (index == CHECKPOINT_E_INDEX)
-
-static unsigned int get_current_checkpoint_index() {
+int get_current_checkpoint_index() {
 	for (int i = sizeof(map) - 1; i >= 0; i--) {
 		if (map[i] > 0) {
 			return (i + 1) % sizeof(map);
@@ -394,6 +382,7 @@ void set_crossroad_count() {
 // Callback function of SysTick
 void HAL_SYSTICK_Callback(void) {
 	motor(right, left);
+	ms_count++;
 //HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_4); // 1ms toggle pin
 //	ms_count++;
 //	ultrasonic_counter++;
@@ -460,7 +449,7 @@ void HAL_SYSTICK_Callback(void) {
 
 //	// Tesing only
 //	if (ms_count < 2000) {
-//		// motor(20000, 20000); // Motor ON for 2000 ms
+//		// motor(30000, 30000); // Motor ON for 2000 ms
 //	} else if (ms_count < 4000) {
 //		motor(0, 0); // Motor OFF for 2000 ms
 //	} else {
@@ -472,13 +461,13 @@ void HAL_SYSTICK_Callback(void) {
 //	unsigned int is_down_pressed = 0; // 'd'
 //	unsigned int is_left_pressed = 0;	// 'l'
 //	if (is_up_pressed == 1) {
-//		motor(20000, 20000);
+//		motor(30000, 30000);
 //	} else if (is_right_pressed == 1) {
-//		motor(0, 20000);
+//		motor(0, 30000);
 //	} else if (is_down_pressed == 1) {
-//		motor(-20000, -20000);
+//		motor(-30000, -30000);
 //	} else if (is_left_pressed == 1) {
-//		motor(20000, 0);
+//		motor(30000, 0);
 //	} else {
 //		motor(0, 0);
 //	}
@@ -665,7 +654,7 @@ int main(void)
   MX_TIM2_Init();
   MX_TIM5_Init();
   MX_TIM12_Init();
-  MX_ADC1_Init();
+  // MX_ADC1_Init();
   MX_I2C1_Init();
   MX_TIM13_Init();
   MX_USART2_UART_Init();
@@ -685,12 +674,12 @@ int main(void)
 	HAL_TIM_Encoder_Start(&htim5, TIM_CHANNEL_1 | TIM_CHANNEL_2);
 
 	// ADC Values for voltage and current
-	HAL_ADC_Start_DMA(&hadc1, (uint32_t*) ADC1Array, 2);
+	// HAL_ADC_Start_DMA(&hadc1, (uint32_t*) ADC1Array, 2);
 	HAL_ADC_Start_DMA(&hadc2, (uint32_t*) ADC2Array, 5);
 
 	HAL_TIM_Base_Start_IT(&htim13); // LED PB5
 
-	HAL_ADC_Start_IT(&hadc1); // ADC interrupt handler
+	// HAL_ADC_Start_IT(&hadc1); // ADC interrupt handler
 	HAL_ADC_Start_IT(&hadc2); // ADC interrupt handler
 
 	HAL_TIM_IC_Init(&htim8);
@@ -721,6 +710,10 @@ int main(void)
 
     ultrasonic_counter = 0;
     HAL_GPIO_WritePin(TRIG_GPIO_Port, TRIG_Pin, GPIO_PIN_SET);
+    int index = 0;
+    int is_turning = 0;
+    uint32_t left_snapshot = 0;
+    uint32_t right_snapshot = 0;
 
   /* USER CODE END 2 */
 
@@ -743,16 +736,6 @@ int main(void)
 //		ssd1306_WriteString(buffer, Font_11x18, White);
 //
 
-		/*
-		snprintf(buffer, sizeof(buffer), "L: %"PRIu32"", __HAL_TIM_GET_COUNTER(&htim2)); // 4,294,967,295
-		ssd1306_SetCursor(0, 0); // Set cursor below the voltage/current display
-		ssd1306_WriteString(buffer, Font_11x18, White);
-
-		snprintf(buffer, sizeof(buffer), "R: %"PRIu32"", __HAL_TIM_GET_COUNTER(&htim5)); // 4,294,967,295
-		ssd1306_SetCursor(0, 30); // Set cursor below the GPIO states
-		ssd1306_WriteString(buffer, Font_11x18, White);
-		*/
-
 //		if (ultrasonic_counter > 1000 && !is_working) {
 //			is_working = true;
 //
@@ -762,8 +745,9 @@ int main(void)
 //		}
 
 		// HCSR04_Read();
+		// set_crossroad_count();
 
-		set_crossroad_count();
+		index = get_current_checkpoint_index();
 
 		sensor_array_value = ADC_TO_BINARY(ADC2Array[4], 4) |
 		    ADC_TO_BINARY(ADC2Array[3], 3) |
@@ -771,43 +755,56 @@ int main(void)
 		    ADC_TO_BINARY(ADC2Array[1], 1) |
 		    ADC_TO_BINARY(ADC2Array[0], 0);
 
-		if (is_center_on_only()) {
-			left = 20000;
-			right = 20000;
+		if (is_turning == 0) {
+			if (is_center_on_only()) {
+				left = 30000;
+				right = 30000;
+			} else {
+				sensor_left = get_left();
+				sensor_right = get_right();
+
+				if (sensor_left > sensor_right) {
+					left = 15000;
+					right = 30000;
+				} else if (sensor_right > sensor_left) {
+					left = 30000;
+					right = 15000;
+				}
+			}
+
+			if (is_crossroad()) {
+				// check point detected
+				// stop detecting for a while
+				// change state
+				if (index == CHECKPOINT_A_INDEX && (__HAL_TIM_GET_COUNTER(&htim2) > 2000 && __HAL_TIM_GET_COUNTER(&htim5) > 2000))
+				{
+					left = 15000;
+					right = 0;
+					left_snapshot = __HAL_TIM_GET_COUNTER(&htim2);
+					is_turning = 1;
+					map[CHECKPOINT_A_INDEX] = 1;
+				} else if (index == CHECKPOINT_B_INDEX) {
+					left = 0;
+					right_snapshot = __HAL_TIM_GET_COUNTER(&htim5);
+					map[CHECKPOINT_B_INDEX] = 1;
+				} else if (index == CHECKPOINT_C_INDEX) {
+					left = 0;
+					map[CHECKPOINT_C_INDEX] = 1;
+				} else if (index == CHECKPOINT_D_INDEX) {
+					right = 0;
+					map[CHECKPOINT_D_INDEX] = 1;
+				} else if (index == CHECKPOINT_E_INDEX) {
+					right = 0;
+					map[CHECKPOINT_E_INDEX] = 1;
+				}
+			}
 		} else {
-			sensor_left = get_left();
-			sensor_right = get_right();
-
-			if (sensor_left > sensor_right) {
-				left = 10000;
-				right = 20000;
-			} else if (sensor_right > sensor_left) {
-				left = 20000;
-				right = 10000;
+			if (index == CHECKPOINT_B_INDEX) {
+				if ( __HAL_TIM_GET_COUNTER(&htim2) > (left_snapshot + 600)) {
+					is_turning = 0;
+					left_snapshot = 0;
+				}
 			}
-		}
-
-		if (is_crossroad()) {
-			// check point detected
-			// stop detecting for a while
-			// change state
-			if (IS_CHECKPOINT_A(get_current_checkpoint_index())) {
-				right = 0;
-				CHECKPOINT_A = 1;
-			} else if (IS_CHECKPOINT_B(get_current_checkpoint_index())) {
-				left = 0;
-				CHECKPOINT_B = 1;
-			} else if (IS_CHECKPOINT_C(get_current_checkpoint_index())) {
-				left = 0;
-				CHECKPOINT_C = 1;
-			} else if (IS_CHECKPOINT_D(get_current_checkpoint_index())) {
-				right = 0;
-				CHECKPOINT_D = 1;
-			} else if (IS_CHECKPOINT_E(get_current_checkpoint_index())) {
-				right = 0;
-				CHECKPOINT_E = 1;
-			}
-			delay(20);
 		}
 
 		// 0 is leftmost
@@ -825,10 +822,18 @@ int main(void)
 
 		// [STM32 UART Receive via IDLE Line – Interrupt & DMA Tutorial](https://controllerstech.com/stm32-uart-5-receive-data-using-idle-line/)
 		// snprintf(buffer, sizeof(buffer), "%04d, %04d", x_axis_adc0, y_axis_adc1); // 4,294,967,295
-		snprintf(buffer, sizeof(buffer), "%d %d %s %d", is_center_on_only(), get_current_checkpoint_index(), IS_CHECKPOINT_A(get_current_checkpoint_index()) ? "A" : "Not A", crossroad_count);
+		snprintf(buffer, sizeof(buffer), "l=%"PRIu32" %d %d", left_snapshot, index, crossroad_count);
+		ssd1306_SetCursor(0, 25); // Set cursor below the GPIO states
+		ssd1306_WriteString(buffer, Font_11x18, White);
 
+		snprintf(buffer, sizeof(buffer), "%"PRIu32", %"PRIu32"", __HAL_TIM_GET_COUNTER(&htim2), __HAL_TIM_GET_COUNTER(&htim5)); // 4,294,967,295
+		ssd1306_SetCursor(0, 45); // Set cursor below the voltage/current display
+		ssd1306_WriteString(buffer, Font_11x18, White);
+		/*
+		snprintf(buffer, sizeof(buffer), "", ); // 4,294,967,295
 		ssd1306_SetCursor(0, 30); // Set cursor below the GPIO states
 		ssd1306_WriteString(buffer, Font_11x18, White);
+		*/
 
 		ssd1306_UpdateScreen();
 		// Write your code below
