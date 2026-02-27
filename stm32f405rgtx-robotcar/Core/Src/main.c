@@ -360,6 +360,7 @@ static char map[] = { 0, 0, 0, 0, 0 };
 int get_current_checkpoint_index() {
 	for (int i = sizeof(map) - 1; i >= 0; i--) {
 		if (map[i] > 0) {
+			map[i] = 0;
 			return (i + 1) % sizeof(map);
 		}
 	}
