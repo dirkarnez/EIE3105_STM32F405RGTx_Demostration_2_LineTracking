@@ -360,7 +360,6 @@ static char map[] = { 0, 0, 0, 0, 0 };
 int get_current_checkpoint_index() {
 	for (int i = sizeof(map) - 1; i >= 0; i--) {
 		if (map[i] > 0) {
-			map[i] = 0;
 			return (i + 1) % sizeof(map);
 		}
 	}
@@ -809,6 +808,7 @@ int main(void)
 				// check point detected
 				// stop detecting for a while
 				// change state
+				//arrive B
 				if (index == CHECKPOINT_A_INDEX && (__HAL_TIM_GET_COUNTER(&htim2) > 2000 && __HAL_TIM_GET_COUNTER(&htim5) > 2000))
 				{
 					left = NORMAL_SPEED / 2;
@@ -816,50 +816,72 @@ int main(void)
 					left_snapshot = __HAL_TIM_GET_COUNTER(&htim2);
 					is_turning = 1;
 					map[CHECKPOINT_A_INDEX] = 1;
-				} else if (index == CHECKPOINT_B_INDEX && (__HAL_TIM_GET_COUNTER(&htim2) > 3000 && __HAL_TIM_GET_COUNTER(&htim5) > 3000)) {
+				} //arrive C
+				else if (index == CHECKPOINT_B_INDEX && (__HAL_TIM_GET_COUNTER(&htim2) > 3000 && __HAL_TIM_GET_COUNTER(&htim5) > 3000)) {
 					left = 0;
 					right = NORMAL_SPEED / 2;
 					right_snapshot = __HAL_TIM_GET_COUNTER(&htim5);
 					is_turning = 1;
 					map[CHECKPOINT_B_INDEX] = 1;
-				} else if (index == CHECKPOINT_C_INDEX && (__HAL_TIM_GET_COUNTER(&htim2) > 7000 && __HAL_TIM_GET_COUNTER(&htim5) > 7000)) {
+				} //arrive D
+				else if (index == CHECKPOINT_C_INDEX && (__HAL_TIM_GET_COUNTER(&htim2) > 7000 && __HAL_TIM_GET_COUNTER(&htim5) > 7000)) {
 					left = 0;
 					right = NORMAL_SPEED / 2;
 					right_snapshot = __HAL_TIM_GET_COUNTER(&htim5);
 					is_turning = 1;
 					map[CHECKPOINT_C_INDEX] = 1;
-				} else if (index == CHECKPOINT_D_INDEX && (__HAL_TIM_GET_COUNTER(&htim2) > 8500 && __HAL_TIM_GET_COUNTER(&htim5) > 8500)) {
+				} //arrive E
+				else if (index == CHECKPOINT_D_INDEX && (__HAL_TIM_GET_COUNTER(&htim2) > 8500 && __HAL_TIM_GET_COUNTER(&htim5) > 8500)) {
 					left = NORMAL_SPEED / 2;
 					right = 0;
 					left_snapshot = __HAL_TIM_GET_COUNTER(&htim2);
 					is_turning = 1;
 					map[CHECKPOINT_D_INDEX] = 1;
+				} // arrive A
+				else if (index == CHECKPOINT_E_INDEX && (__HAL_TIM_GET_COUNTER(&htim2) > 9000 && __HAL_TIM_GET_COUNTER(&htim5) > 9000)) {
+					left = NORMAL_SPEED / 2;
+					right = 0;
+					left_snapshot = __HAL_TIM_GET_COUNTER(&htim2);
+					is_turning = 1;
+					map[CHECKPOINT_A_INDEX] = 0;
+					map[CHECKPOINT_B_INDEX] = 0;
+					map[CHECKPOINT_C_INDEX] = 0;
+					map[CHECKPOINT_D_INDEX] = 0;
+					map[CHECKPOINT_E_INDEX] = 1;
 				}
-//				else if (index == CHECKPOINT_E_INDEX) {
-//					right = 0;
-//					map[CHECKPOINT_E_INDEX] = 1;
-//				}
 			}
 		} else {
+			// finishing turning at B
 			if (index == CHECKPOINT_B_INDEX) {
 				if ( __HAL_TIM_GET_COUNTER(&htim2) > (left_snapshot + 600)) {
 					is_turning = 0;
 					left_snapshot = 0;
 				}
-			} else if (index == CHECKPOINT_C_INDEX) {
+			}
+			// finishing turning at C
+			else if (index == CHECKPOINT_C_INDEX) {
 				if ( __HAL_TIM_GET_COUNTER(&htim5) > (right_snapshot + 400)) {
 					is_turning = 0;
 					right_snapshot = 0;
 				}
-			} else if (index == CHECKPOINT_D_INDEX) {
+			} // finishing turning at D
+			else if (index == CHECKPOINT_D_INDEX) {
 				if ( __HAL_TIM_GET_COUNTER(&htim5) > (right_snapshot + 400)) {
 					is_turning = 0;
 					right_snapshot = 0;
 				}
-			} else if (index == CHECKPOINT_E_INDEX) {
+			} // finishing turning at E
+			else if (index == CHECKPOINT_E_INDEX) {
 				if ( __HAL_TIM_GET_COUNTER(&htim2) > (left_snapshot + 600)) {
 					is_turning = 0;
 					left_snapshot = 0;
+				}
+			} // finishing turning at A
+			else if (index == CHECKPOINT_A_INDEX && map[CHECKPOINT_E_INDEX] == 1) {
+				if ( __HAL_TIM_GET_COUNTER(&htim2) > (left_snapshot + 600)) {
+					is_turning = 0;
+					left_snapshot = 0;
+					map[CHECKPOINT_E_INDEX] = 0;
 				}
 			}
 		}
@@ -879,7 +901,7 @@ int main(void)
 
 		// [STM32 UART Receive via IDLE Line – Interrupt & DMA Tutorial](https://controllerstech.com/stm32-uart-5-receive-data-using-idle-line/)
 		// snprintf(buffer, sizeof(buffer), "%04d, %04d", x_axis_adc0, y_axis_adc1); // 4,294,967,295
-		snprintf(buffer, sizeof(buffer), "l=%"PRIu32" %c %d", left_snapshot, print_checkpoint(index), crossroad_count);
+		snprintf(buffer, sizeof(buffer), "ckpt: %c cr: %d", print_checkpoint(index), crossroad_count);
 		ssd1306_SetCursor(0, 25); // Set cursor below the GPIO states
 		ssd1306_WriteString(buffer, Font_11x18, White);
 
