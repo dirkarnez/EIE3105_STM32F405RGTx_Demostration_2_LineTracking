@@ -36,6 +36,7 @@
 #include <ssd1306_fonts.h>
 #define ADC_TO_BINARY(adc_value, NTH) (((adc_value) < (2048)) ? (1 << NTH) : 0)
 #define IS_NTH_BIT_ONE(TARGET, NTH) (((TARGET) & (1 << NTH)) == (1 << NTH))
+#define MIN(a, b) ((a) > (b) ? (b) : (a))
 
 /* USER CODE END Includes */
 
@@ -357,6 +358,7 @@ static char map[] = { 0, 0, 0, 0, 0 };
 #define CHECKPOINT_D_INDEX (3)
 #define CHECKPOINT_E_INDEX (4)
 
+/*
 int get_current_checkpoint_index() {
 	for (int i = sizeof(map) - 1; i >= 0; i--) {
 		if (map[i] > 0) {
@@ -364,6 +366,18 @@ int get_current_checkpoint_index() {
 		}
 	}
 	return 0;
+}
+*/
+
+int get_current_checkpoint_index() {
+    int last_completed_index = -1;
+	for (int i = sizeof(map) - 1; i >= 0; i--) {
+		if (map[i] > 0) {
+            last_completed_index = i;
+            break;
+		}
+	}
+	return (last_completed_index + 1) % sizeof(map);
 }
 
 int is_crossroad(int idx) {
@@ -646,6 +660,15 @@ void HCSR04_Read (void)
 	__HAL_TIM_ENABLE_IT(&htim8, TIM_IT_CC1);
 }
 
+uint32_t get_left_counter_value(uint32_t offset) {
+	return __HAL_TIM_GET_COUNTER(&htim2) - offset;
+}
+
+
+uint32_t get_right_counter_value(uint32_t offset) {
+	return  __HAL_TIM_GET_COUNTER(&htim5) - offset;
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -743,6 +766,7 @@ int main(void)
     int is_turning = 0;
     uint32_t left_snapshot = 0;
     uint32_t right_snapshot = 0;
+    uint32_t offset = 0;
 
   /* USER CODE END 2 */
 
@@ -809,39 +833,39 @@ int main(void)
 				// stop detecting for a while
 				// change state
 				//arrive B
-				if (index == CHECKPOINT_A_INDEX && (__HAL_TIM_GET_COUNTER(&htim2) > 2000 && __HAL_TIM_GET_COUNTER(&htim5) > 2000))
+				if (index == CHECKPOINT_A_INDEX && (get_left_counter_value(offset) > 2000 && get_right_counter_value(offset) > 2000))
 				{
 					left = NORMAL_SPEED / 2;
 					right = 0;
-					left_snapshot = __HAL_TIM_GET_COUNTER(&htim2);
+					left_snapshot = get_left_counter_value(offset);
 					is_turning = 1;
 					map[CHECKPOINT_A_INDEX] = 1;
 				} //arrive C
-				else if (index == CHECKPOINT_B_INDEX && (__HAL_TIM_GET_COUNTER(&htim2) > 3000 && __HAL_TIM_GET_COUNTER(&htim5) > 3000)) {
+				else if (index == CHECKPOINT_B_INDEX && (get_left_counter_value(offset) > 3000 && get_right_counter_value(offset) > 3000)) {
 					left = 0;
 					right = NORMAL_SPEED / 2;
-					right_snapshot = __HAL_TIM_GET_COUNTER(&htim5);
+					right_snapshot = get_right_counter_value(offset);
 					is_turning = 1;
 					map[CHECKPOINT_B_INDEX] = 1;
 				} //arrive D
-				else if (index == CHECKPOINT_C_INDEX && (__HAL_TIM_GET_COUNTER(&htim2) > 7000 && __HAL_TIM_GET_COUNTER(&htim5) > 7000)) {
+				else if (index == CHECKPOINT_C_INDEX && (get_left_counter_value(offset) > 7000 && get_right_counter_value(offset) > 7000)) {
 					left = 0;
 					right = NORMAL_SPEED / 2;
-					right_snapshot = __HAL_TIM_GET_COUNTER(&htim5);
+					right_snapshot = get_right_counter_value(offset);
 					is_turning = 1;
 					map[CHECKPOINT_C_INDEX] = 1;
 				} //arrive E
-				else if (index == CHECKPOINT_D_INDEX && (__HAL_TIM_GET_COUNTER(&htim2) > 8500 && __HAL_TIM_GET_COUNTER(&htim5) > 8500)) {
+				else if (index == CHECKPOINT_D_INDEX && (get_left_counter_value(offset) > 8500 && get_right_counter_value(offset) > 8500)) {
 					left = NORMAL_SPEED / 2;
 					right = 0;
-					left_snapshot = __HAL_TIM_GET_COUNTER(&htim2);
+					left_snapshot = get_left_counter_value(offset);
 					is_turning = 1;
 					map[CHECKPOINT_D_INDEX] = 1;
 				} // arrive A
-				else if (index == CHECKPOINT_E_INDEX && (__HAL_TIM_GET_COUNTER(&htim2) > 9000 && __HAL_TIM_GET_COUNTER(&htim5) > 9000)) {
+				else if (index == CHECKPOINT_E_INDEX && (get_left_counter_value(offset) > 9000 && get_right_counter_value(offset) > 9000)) {
 					left = NORMAL_SPEED / 2;
 					right = 0;
-					left_snapshot = __HAL_TIM_GET_COUNTER(&htim2);
+					left_snapshot = get_left_counter_value(offset);
 					is_turning = 1;
 					map[CHECKPOINT_A_INDEX] = 0;
 					map[CHECKPOINT_B_INDEX] = 0;
@@ -853,38 +877,40 @@ int main(void)
 		} else {
 			// finishing turning at B
 			if (index == CHECKPOINT_B_INDEX) {
-				if ( __HAL_TIM_GET_COUNTER(&htim2) > (left_snapshot + 600)) {
+				if ( get_left_counter_value(offset) > (left_snapshot + 600)) {
 					is_turning = 0;
 					left_snapshot = 0;
 				}
 			}
 			// finishing turning at C
 			else if (index == CHECKPOINT_C_INDEX) {
-				if ( __HAL_TIM_GET_COUNTER(&htim5) > (right_snapshot + 400)) {
+				if ( get_right_counter_value(offset) > (right_snapshot + 400)) {
 					is_turning = 0;
 					right_snapshot = 0;
 				}
 			} // finishing turning at D
 			else if (index == CHECKPOINT_D_INDEX) {
-				if ( __HAL_TIM_GET_COUNTER(&htim5) > (right_snapshot + 400)) {
+				if ( get_right_counter_value(offset) > (right_snapshot + 400)) {
 					is_turning = 0;
 					right_snapshot = 0;
 				}
 			} // finishing turning at E
 			else if (index == CHECKPOINT_E_INDEX) {
-				if ( __HAL_TIM_GET_COUNTER(&htim2) > (left_snapshot + 600)) {
+				if ( get_left_counter_value(offset) > (left_snapshot + 600)) {
 					is_turning = 0;
 					left_snapshot = 0;
 				}
-			} // finishing turning at A
+			} // finishing turning at A, expect
 			else if (index == CHECKPOINT_A_INDEX && map[CHECKPOINT_E_INDEX] == 1) {
-				if ( __HAL_TIM_GET_COUNTER(&htim2) > (left_snapshot + 600)) {
+				if ( get_left_counter_value(offset) > (left_snapshot + 600)) {
 					is_turning = 0;
 					left_snapshot = 0;
+					offset = MIN(__HAL_TIM_GET_COUNTER(&htim2), __HAL_TIM_GET_COUNTER(&htim5));
 					map[CHECKPOINT_E_INDEX] = 0;
 				}
 			}
 		}
+
 
 		// 0 is leftmost
 		snprintf(buffer, sizeof(buffer), "[%c%c%c%c%c]",
@@ -905,7 +931,7 @@ int main(void)
 		ssd1306_SetCursor(0, 25); // Set cursor below the GPIO states
 		ssd1306_WriteString(buffer, Font_11x18, White);
 
-		snprintf(buffer, sizeof(buffer), "%"PRIu32", %"PRIu32"", __HAL_TIM_GET_COUNTER(&htim2), __HAL_TIM_GET_COUNTER(&htim5)); // 4,294,967,295
+		snprintf(buffer, sizeof(buffer), "%"PRIu32", %"PRIu32"", get_left_counter_value(offset), get_right_counter_value(offset)); // 4,294,967,295
 		ssd1306_SetCursor(0, 45); // Set cursor below the voltage/current display
 		ssd1306_WriteString(buffer, Font_11x18, White);
 		/*
