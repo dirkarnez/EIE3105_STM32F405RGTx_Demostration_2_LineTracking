@@ -766,7 +766,8 @@ int main(void)
     int is_turning = 0;
     uint32_t left_snapshot = 0;
     uint32_t right_snapshot = 0;
-    uint32_t offset = 0;
+    uint32_t left_offset = 0;
+    uint32_t right_offset = 0;
 
   /* USER CODE END 2 */
 
@@ -833,79 +834,80 @@ int main(void)
 				// stop detecting for a while
 				// change state
 				//arrive B
-				if (index == CHECKPOINT_A_INDEX && (get_left_counter_value(offset) > 2000 && get_right_counter_value(offset) > 2000))
+				if (index == CHECKPOINT_A_INDEX && (get_left_counter_value(left_offset) > 2000 && get_right_counter_value(right_offset) > 2000))
 				{
 					left = NORMAL_SPEED / 2;
 					right = 0;
-					left_snapshot = get_left_counter_value(offset);
+					left_snapshot = get_left_counter_value(left_offset);
 					is_turning = 1;
 					map[CHECKPOINT_A_INDEX] = 1;
 				} //arrive C
-				else if (index == CHECKPOINT_B_INDEX && (get_left_counter_value(offset) > 3000 && get_right_counter_value(offset) > 3000)) {
+				else if (index == CHECKPOINT_B_INDEX && (get_left_counter_value(left_offset) > 3000 && get_right_counter_value(right_offset) > 3000)) {
 					left = 0;
 					right = NORMAL_SPEED / 2;
-					right_snapshot = get_right_counter_value(offset);
+					right_snapshot = get_right_counter_value(right_offset);
 					is_turning = 1;
 					map[CHECKPOINT_B_INDEX] = 1;
 				} //arrive D
-				else if (index == CHECKPOINT_C_INDEX && (get_left_counter_value(offset) > 7000 && get_right_counter_value(offset) > 7000)) {
+				else if (index == CHECKPOINT_C_INDEX && (get_left_counter_value(left_offset) > 6800 && get_right_counter_value(right_offset) > 6800)) {
 					left = 0;
 					right = NORMAL_SPEED / 2;
-					right_snapshot = get_right_counter_value(offset);
+					right_snapshot = get_right_counter_value(right_offset);
 					is_turning = 1;
 					map[CHECKPOINT_C_INDEX] = 1;
 				} //arrive E
-				else if (index == CHECKPOINT_D_INDEX && (get_left_counter_value(offset) > 8500 && get_right_counter_value(offset) > 8500)) {
+				else if (index == CHECKPOINT_D_INDEX && (get_left_counter_value(left_offset) > 8500 && get_right_counter_value(right_offset) > 8500)) {
 					left = NORMAL_SPEED / 2;
 					right = 0;
-					left_snapshot = get_left_counter_value(offset);
+					left_snapshot = get_left_counter_value(left_offset);
 					is_turning = 1;
 					map[CHECKPOINT_D_INDEX] = 1;
 				} // arrive A
-				else if (index == CHECKPOINT_E_INDEX && (get_left_counter_value(offset) > 9000 && get_right_counter_value(offset) > 9000)) {
+				else if (index == CHECKPOINT_E_INDEX && (get_left_counter_value(left_offset) > 9000 && get_right_counter_value(right_offset) > 9000)) {
 					left = NORMAL_SPEED / 2;
 					right = 0;
-					left_snapshot = get_left_counter_value(offset);
+					left_snapshot = get_left_counter_value(left_offset);
 					is_turning = 1;
-					map[CHECKPOINT_A_INDEX] = 0;
-					map[CHECKPOINT_B_INDEX] = 0;
-					map[CHECKPOINT_C_INDEX] = 0;
-					map[CHECKPOINT_D_INDEX] = 0;
 					map[CHECKPOINT_E_INDEX] = 1;
 				}
 			}
 		} else {
 			// finishing turning at B
 			if (index == CHECKPOINT_B_INDEX) {
-				if ( get_left_counter_value(offset) > (left_snapshot + 600)) {
+				if ( get_left_counter_value(left_offset) > (left_snapshot + 600)) {
 					is_turning = 0;
 					left_snapshot = 0;
 				}
 			}
 			// finishing turning at C
 			else if (index == CHECKPOINT_C_INDEX) {
-				if ( get_right_counter_value(offset) > (right_snapshot + 400)) {
+				if ( get_right_counter_value(right_offset) > (right_snapshot + 400)) {
 					is_turning = 0;
 					right_snapshot = 0;
 				}
 			} // finishing turning at D
 			else if (index == CHECKPOINT_D_INDEX) {
-				if ( get_right_counter_value(offset) > (right_snapshot + 400)) {
+				if ( get_right_counter_value(right_offset) > (right_snapshot + 400)) {
 					is_turning = 0;
 					right_snapshot = 0;
 				}
 			} // finishing turning at E
 			else if (index == CHECKPOINT_E_INDEX) {
-				if ( get_left_counter_value(offset) > (left_snapshot + 600)) {
+				if ( get_left_counter_value(left_offset) > (left_snapshot + 600)) {
 					is_turning = 0;
 					left_snapshot = 0;
 				}
 			} // finishing turning at A, expect
 			else if (index == CHECKPOINT_A_INDEX && map[CHECKPOINT_E_INDEX] == 1) {
-				if ( get_left_counter_value(offset) > (left_snapshot + 600)) {
+				if ( get_left_counter_value(left_offset) > (left_snapshot + 600)) {
 					is_turning = 0;
 					left_snapshot = 0;
-					offset = MIN(__HAL_TIM_GET_COUNTER(&htim2), __HAL_TIM_GET_COUNTER(&htim5));
+					left_offset = __HAL_TIM_GET_COUNTER(&htim2) - 200;
+					right_offset = __HAL_TIM_GET_COUNTER(&htim5) - 200;
+					map[CHECKPOINT_A_INDEX] = 0;
+					map[CHECKPOINT_B_INDEX] = 0;
+					map[CHECKPOINT_C_INDEX] = 0;
+					map[CHECKPOINT_D_INDEX] = 0;
 					map[CHECKPOINT_E_INDEX] = 0;
 				}
 			}
@@ -925,15 +927,23 @@ int main(void)
 		ssd1306_SetCursor(0, 0);
 		ssd1306_WriteString(buffer, Font_11x18, White);
 
+
+
+
 		// [STM32 UART Receive via IDLE Line – Interrupt & DMA Tutorial](https://controllerstech.com/stm32-uart-5-receive-data-using-idle-line/)
 		// snprintf(buffer, sizeof(buffer), "%04d, %04d", x_axis_adc0, y_axis_adc1); // 4,294,967,295
-		snprintf(buffer, sizeof(buffer), "ckpt: %c cr: %d", print_checkpoint(index), crossroad_count);
+		snprintf(buffer, sizeof(buffer), "[%c] %d%d%d%d%d", print_checkpoint(index), map[0], map[1], map[2], map[3],map[4]);
 		ssd1306_SetCursor(0, 25); // Set cursor below the GPIO states
 		ssd1306_WriteString(buffer, Font_11x18, White);
 
-		snprintf(buffer, sizeof(buffer), "%"PRIu32", %"PRIu32"", get_left_counter_value(offset), get_right_counter_value(offset)); // 4,294,967,295
+
+		snprintf(buffer, sizeof(buffer), "%"PRIu32", %"PRIu32"", get_left_counter_value(left_offset), get_right_counter_value(right_offset)); // 4,294,967,295
 		ssd1306_SetCursor(0, 45); // Set cursor below the voltage/current display
 		ssd1306_WriteString(buffer, Font_11x18, White);
+
+
+
+
 		/*
 		snprintf(buffer, sizeof(buffer), "", ); // 4,294,967,295
 		ssd1306_SetCursor(0, 30); // Set cursor below the GPIO states
